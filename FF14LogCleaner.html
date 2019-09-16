@@ -1,0 +1,677 @@
+<html lang="en_US">
+<head>
+	<meta charset="utf-8">
+	<style>
+		.table {
+			display: table;
+		}
+		
+		.col-5 {
+			float: left;
+			width: 5%;
+			margin-top: 6px;
+		}
+	
+		.col-25 {
+			float: left;
+			width: 20%;
+			margin-top: 6px;
+		}
+		
+		.row:after {
+			content: "";
+			display: table;
+			clear: both;
+		}
+	</style>
+</head>
+<body>
+	<div>
+		<div id="cleanerSettings">
+			<div id="cleanerSettingsColor">
+			</div>
+			<div id="cleanerSettingsTimeFormat">
+			</div>
+		</div>	
+		<br/>
+		<div>
+			<button id="btn_clear_settings" type="button">Clear Settings & Reload</button>
+		</div>
+		<p></p>
+		<div>
+			<input type="file" id="input_load_file" name="files[]"/>
+		</div>
+		<div>
+			<a href='' id='saveRef'>
+				<button id='saveButton' type='button'>Save file</button>
+			</a>
+		<div>
+	</div>
+
+	<div>
+		<p></p>
+		<label>Preview:</label>
+		<iframe id="cleanerPreviewWindow" frameborder="1" style="height:100%; width: 100%;"></iframe>
+	</div>
+	
+	<script>
+		const CLEANER_SETTINGS = [
+			{name: "Background", id: "background", config: {colorBG:null}},
+			{name: "Message Head", id:"messagehead", config: {colorFG:"#047AC2"}},
+			{name: "Say",id: "say", config: {colorFG:"#000000",colorBG:null, color:{text:null,background:null}}},
+			{name: "Emote",id: "emote", config: {colorFG:"#DF8707", colorBG:null}},
+			{name: "OoC",id: "ooc", config: {colorFG:"#FF0000", colorBG:null}},
+			{name: "Yell",id: "yell", config: {colorFG:null,colorBG:"#FAFFD1"}},
+			{name: "Guild",id: "guild", config: {colorFG:null,colorBG:"#CDFF9E"}},
+			{name: "Tell send",id: "tells", config: {colorFG:null,colorBG:'#FF9EED'}},
+			{name: "Tell recieve",id: "tellr", config: {colorFG:null,colorBG:"#CC9EFF"}}
+		]
+		
+		const CLEANER_SETTINGS_MAP = new Map(CLEANER_SETTINGS.map(e => [e.id, e]));
+				
+		//console.log(TEXT_SETTINGS)
+		
+		
+		function iterateConfigLeafs(root, callback){
+			const fringe = Object.keys(root).map((key) => {return [root,key,key]})
+			while( fringe.length ){
+				const pair = fringe.pop()
+				const value = pair[0][pair[1]]
+				if( value instanceof Object && [Object, Array].includes(value.constructor) ){ // not a leaf					
+					const newFringe = Object.keys(value).map((key) => {return [value,key,pair[2] + "_" + key]})
+					fringe.push(...newFringe)
+				}else{
+					callback(pair[0],pair[1],pair[2],value)
+				}
+			}
+		}
+		
+		document.getElementById("btn_clear_settings")
+			.addEventListener("click",function(event){
+				window.localStorage.clear()
+				window.location.reload(false)
+			},false);
+		
+		//iterateConfigLeafs( TEXT_SETTINGS[0].config )
+		
+		{
+			const localStorage = window.localStorage
+			
+			for(let element of CLEANER_SETTINGS){
+				const config = element.config
+				for(let property in config){
+					const key = element.id + "_config_" + property
+					const data = localStorage.getItem(key)
+					console.log("Property: " + key + " = " + data)
+					if( data !== undefined && data != null ){
+						config[property] = data
+					}					
+				}
+			}
+		}
+				
+		function buildCleanerColorTable(){
+			const html = []
+			html.push("<table>")
+			html.push("<tbody>")
+			
+			//make this more generic, table should be build automatically from config
+			for(let element of CLEANER_SETTINGS){
+				html.push("<tr>")
+				
+				const config = element.config
+
+				let hasColorFG = "colorFG" in config
+				let hasColorBG = "colorBG" in config
+				
+				if(hasColorFG || hasColorBG){
+					html.push("<td>")
+						html.push(element.name," color")
+					html.push("</td>")
+					
+						if( hasColorFG ){
+							html.push("<td>")
+								html.push("<div>")
+									html.push("<label>Text color:</label>")
+									html.push("<input type='color' id='picker_",element.id,"_color_text'")
+									if( config.colorFG ){
+										html.push(" value=",config.colorFG)
+									}
+									html.push(">")
+								html.push("</div>")
+							html.push("</td>")
+						}
+						if( hasColorBG ){
+							html.push("<td>")
+								html.push("<div>")
+									html.push("<label>Background color:</label>")
+									html.push("<input type='color' id='picker_",element.id,"_color_background'")
+									if( config.colorBG ){
+										html.push(" value=",config.colorBG)
+									}
+									html.push(">")
+								html.push("</div>")
+							html.push("</td>")
+						}
+					}
+				html.push("</tr>")
+			}	
+			
+			html.push("</tbody>")
+			html.push("</table>")
+			
+			const cleanerSettings = document.getElementById('cleanerSettingsColor')	
+			cleanerSettings.innerHTML = html.join('')
+		}
+		buildCleanerColorTable()
+				
+		{			
+			//make this more generic, callbacks should be build automatically from config
+			const localStorage = window.localStorage
+			for(let element of CLEANER_SETTINGS){
+				const config = element.config
+				if( "colorFG" in config ){
+					const picker = document.getElementById("picker_" + element.id + "_color_text")
+					const callback = function(event){
+						const newColor = event.target.value
+						const key = element.id + "_config_" + "colorFG"
+						config.colorFG = newColor
+						localStorage.setItem(key,newColor)					
+						console.log("Set " + key + " to " + newColor)
+						updateStyleSheet()
+					}
+					picker.addEventListener("change",callback,false)
+				}
+				if( "colorBG" in config ){
+					const picker = document.getElementById("picker_" + element.id + "_color_background")
+					const callback = function(event){
+						const newColor = event.target.value
+						const key = element.id + "_config_" + "colorBG"
+						config.colorBG = newColor
+						localStorage.setItem(key,newColor)					
+						console.log("Set " + key + " to " + newColor)
+						updateStyleSheet()
+					}
+					picker.addEventListener("change",callback,false)
+				}
+			}
+		}
+	</script>
+	
+	<script>
+		if(!(window.File && window.FileReader && window.FileList && window.Blob)){
+			alert('File API is not supported in this browser. Unable to process files');
+		}
+		
+		document.getElementById('saveButton').disabled  = true
+	
+		function onFileSelect(event){
+			var files = event.target.files;
+			readFile(files[0]);
+		}
+		
+		function onFileDrop(event){
+			event.stopPropagation();
+			event.preventDefault();
+			var files = event.dataTransfer.files;
+			readFile(files[0]);
+		}
+		
+		function handleDragOver(event){
+			event.stopPropagation();
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'copy';
+		}
+
+		document.getElementById('input_load_file').addEventListener('change',onFileSelect,false);
+		document.getElementById('input_load_file').addEventListener('dragover',handleDragOver,false);
+		document.getElementById('input_load_file').addEventListener('drop',onFileDrop,false);
+				
+		function readFile(file){
+			FILE_NAME = file.name;
+			document.getElementById('saveButton').disabled  = true
+		
+			var fileReader = new FileReader()
+			fileReader.onload = function(event){
+				var content = event.target.result
+				buildHtmlLog(content)
+			}
+			fileReader.onerror = function(event) {
+				alert("File could not be read! Code " + event.target.error.code)
+			}
+			
+			fileReader.readAsText(file,'UTF-8')
+		}
+
+		function parseFile(file, callback) {
+			var fileSize   = file.size
+			var chunkSize  = 64 * 1024 // bytes
+			var offset     = 0
+			var self       = this // we need a reference to the current object
+			var chunkReaderBlock = null
+
+			var readEventHandler = function(evt) {
+				if (evt.target.error == null) {
+					offset += evt.target.result.length
+					callback(evt.target.result) // callback for handling read chunk
+				} else {
+					console.log("Read error: " + evt.target.error)
+					return
+				}
+				if (offset >= fileSize) {
+					console.log("Done reading file")
+					return
+				}
+
+				// of to the next chunk
+				chunkReaderBlock(offset, chunkSize, file)
+			}
+
+			chunkReaderBlock = function(_offset, length, _file) {
+				var reader = new FileReader()
+				var blob = _file.slice(_offset, length + _offset)
+				reader.onload = readEventHandler
+				reader.readAsText(blob)
+			}
+
+			// now let's start the read with the first block
+			chunkReaderBlock(offset, chunkSize, file)
+		}
+	</script>
+	
+	<script>	
+		function buildHtmlLog(content){
+			const allLines = content.split(/\r\n|\n/)
+						
+			// Reading line by line
+			const result = allLines.map((line) => {
+					const index = {value:0}
+					const lineCode = getFragment(index,line)
+					if(lineCode == '00'){
+						return parseContentChatLog(index,line)
+					}else{
+						return null
+					}
+				})
+				.filter(Boolean)
+				.map(processMessageObject)
+				.map(buildHtmlMessage)
+				.filter(Boolean)
+				.filter((arr) => {return arr.length > 0})
+				.flat()
+			
+			const html = []
+			html.push('<!DOCTYPE html>')
+			html.push('<html>')
+				html.push('<head>')
+					html.push('<meta charset="utf-8">')
+					html.push('<style id="chat_style">')					
+						buildHtmlStyleSheet(html)											
+					html.push('</style>')
+				html.push('</head>')
+				html.push('<body class="chat-log">')
+					html.push('<div id="parsedLog">') 
+						html.push('<dl>')
+							html.push(...result)
+						html.push('</dl>')
+					html.push('</div>')
+				html.push('</body>')
+			html.push('</html>')
+			
+			//document.getElementById('list').innerHTML = innerHtml	
+			//const saveableFile = new Blob([innerHtml],{type:'text/plain'})
+			
+			const innerHtml = html.join('')
+			const doc = document.getElementById('cleanerPreviewWindow').contentWindow.document
+			doc.open()
+			doc.write(innerHtml)
+			doc.close()
+			
+			prepareSaveAsFile()
+		}
+		
+		function updateStyleSheet(){
+			const iFrame = document.getElementById('cleanerPreviewWindow').contentWindow.document
+			const styleSheet = iFrame.getElementById('chat_style')
+			if( !styleSheet ) return
+
+			const html = []
+			buildHtmlStyleSheet(html)
+			styleSheet.innerHTML = html.join('')
+			
+			prepareSaveAsFile()
+		}
+		
+		
+		
+		function prepareSaveAsFile(){
+			const data = document.getElementById('cleanerPreviewWindow').contentWindow.document.documentElement
+			const html = data.outerHTML
+			
+			//const pretty = prettyPrintHtmlIndentation(html)
+			
+			const saveableFile = new Blob([html],{type:'text/html'})
+			document.getElementById('saveRef').href = URL.createObjectURL(saveableFile)
+			document.getElementById('saveRef').download = FILE_NAME + '.cleaned.html'
+			document.getElementById('saveButton').disabled = false	
+		}
+		
+		function prettyPrintHtmlIndentation(str){
+			function format(node, level) {
+
+				var indentBefore = new Array(level++ + 1).join('  '),
+					indentAfter  = new Array(level - 1).join('  '),
+					textNode;
+
+				for (var i = 0; i < node.children.length; i++) {
+					textNode = document.createTextNode('\n' + indentBefore);
+					node.insertBefore(textNode, node.children[i]);
+					format(node.children[i], level);
+					if (node.lastElementChild == node.children[i]) {
+						textNode = document.createTextNode('\n' + indentAfter);
+						node.appendChild(textNode);
+					}
+				}
+				return node;
+			}
+			
+			var div = document.createElement('div');
+			div.innerHTML = str.trim();
+			return format(div, 0).innerHTML;
+		}		
+				
+		function buildHtmlStyleSheet(html){			
+			buildCssClass(html,'chat-log','background', 2 )
+			buildCssClass(html,'message-header','messagehead', 1)
+						
+			buildCssClass(html,'message-body-say','say', 2)	
+			buildCssClass(html,'message-body-emote','emote', 2)	
+			buildCssClass(html,'message-body-yell','yell', 1|2)	
+			buildCssClass(html,'message-body-guild','guild', 1|2)	
+			buildCssClass(html,'message-body-tells','tells', 1|2)	
+			buildCssClass(html,'message-body-tellr','tellr', 1|2)	
+			
+			buildCssClass(html,'segment-say','say', 1)	
+			buildCssClass(html,'segment-emote','emote', 1)
+			buildCssClass(html,'segment-ooc','ooc', 1|2)
+
+			html.push('.segment-default{}')
+		}
+		
+		function buildCssClass(html,className, classKey, configKey){
+			const config = CLEANER_SETTINGS_MAP.get(classKey).config
+			html.push('.',className,'{')
+			if( config ){
+				if( (configKey & 1) && config.colorFG ) html.push('color:' + config.colorFG + ';')
+				if( (configKey & 2) &&config.colorBG ) html.push('background:' + config.colorBG + ';')
+			}
+			html.push('}')
+		}
+				
+		var FILE_NAME = ''
+		var PARSE_RESULT = ''
+		
+		const CHATLOG_TYPE_SAY = '000a'
+		const CHATLOG_TYPE_EMOTE = '001c'
+		const CHATLOG_TYPE_YELL = '001e'
+		const CHATLOG_TYPE_GUILD = '0018'
+		const CHATLOG_TYPE_TELL_S = '000c'
+		const CHATLOG_TYPE_TELL_R = '000d'
+		
+		const SEGMENT_TYPE_SAY = 'say'
+		const SEGMENT_TYPE_EMOTE = 'emote'
+		const SEGMENT_TYPE_OOC = 'ooc'
+		const SEGMENT_TYPE_UNDEFINED = 'undefined'
+				
+		function parseContentChatLog(index,line){
+			const sTime = getFragment(index,line);
+			const sType = getFragment(index,line);
+			const sSource = getFragment(index,line);
+			const sMessage = getFragment(index,line);
+
+			//ignore lines with the wrong type
+			if( !(	sType == CHATLOG_TYPE_SAY || 
+					sType == CHATLOG_TYPE_EMOTE || 
+					sType == CHATLOG_TYPE_YELL ||
+					sType == CHATLOG_TYPE_GUILD || 
+					sType == CHATLOG_TYPE_TELL_S || 
+					sType == CHATLOG_TYPE_TELL_R) ){
+				console.log('Begone: ' + line);
+				return;
+			}
+			
+			const messageObj = {
+				time: sTime,
+				type: sType,
+				source: sSource,
+				message : sMessage
+			}
+			
+			return messageObj;			
+		}
+		
+		function getFragment(index, line){
+			const mark = line.indexOf('|',index.value);
+			if (mark < 0) return null;
+			const fragment = line.substring(index.value,mark);
+			index.value = mark + 1;
+			return fragment;
+		}
+		
+		function processMessageObject(messageObj){
+			messageObj = processMessageTimeStamp(messageObj)
+			messageObj = processMessageSegments(messageObj)
+			return messageObj
+		}
+		
+		function processMessageTimeStamp(messageObj){
+			messageObj.time = parseDate(messageObj.time)
+			return messageObj
+		}
+		
+		function parseDate(strDate) {
+		  function parseISO(s) {
+			const b = s.split(/\D/)
+			const utc = Date.UTC(b[0],--b[1],b[2],b[3],b[4],b[5],b[6]|0)
+			const offset = 0 //calculateOffset(s)
+			return new Date(utc+offset)
+		  }
+		  
+		  function calculateOffset(s){
+			const offset = s.substring(s.length-6,s.length)	
+			if( !(offset.startsWith("+") || offset.startsWith("-")) ) return 0
+			const sign = offset.startsWith("+") ? 1 : -1
+			const minutes = sign * (offset.substring(1,3) * 60) + (offset.substring(4,6) * 1)
+			return minutes
+		  }
+
+		  const date = parseISO(strDate)
+		  return date
+		}
+		
+		function processMessageSegments(messageObj){
+		
+			function getDefaultSegmentType(msgType){
+				switch(msgType){
+					case CHATLOG_TYPE_SAY: return SEGMENT_TYPE_SAY
+					case CHATLOG_TYPE_EMOTE: return SEGMENT_TYPE_EMOTE
+					default: return SEGMENT_TYPE_UNDEFINED
+				}
+			}
+			
+			function buildSegment(type,start,end){
+				return {
+						type: type,
+						msgMark: {start: start, end: end}
+					}
+			}
+			
+			const message = messageObj.message
+			const defaultSegmentType = getDefaultSegmentType(messageObj.type)
+			
+			let mark = 0			
+			let expectedEncounter = null			
+						
+			let segment = buildSegment(defaultSegmentType,0,0)
+			
+			let messageSegments = []
+			for(let i = 0; i < message.length; ++i){
+				let c = message.charAt(i)
+				if( c == '"' ){
+					segment.msgMark.end = i
+					messageSegments.push(segment)
+					
+					mark = i+1
+				
+					if( expectedEncounter == null ){
+						expectedEncounter = '"'					
+						segment = buildSegment(SEGMENT_TYPE_SAY,mark,mark)
+					}else if( expectedEncounter != null ){
+						expectedEncounter = null
+						segment = buildSegment(defaultSegmentType,mark,mark)	
+					}
+				}else if( c == '*' ){
+					segment.msgMark.end = i
+					messageSegments.push(segment)
+					
+					mark = i+1
+				
+					if( expectedEncounter == null ){
+						expectedEncounter = '"'		
+						segment = buildSegment(SEGMENT_TYPE_EMOTE,mark,mark)	
+					}else if( expectedEncounter != null ){
+						expectedEncounter = null					
+						segment = buildSegment(defaultSegmentType,mark,mark)
+					}
+				}else if( c == '(' ){
+					if( 0 < i && message.charAt(i-1) == '(' ){
+					
+					}
+					continue //doesnt work yet
+					
+					segment.msgMark.end = i
+					messageSegments.push(segment)
+					
+					mark = i+1
+					
+					segment = buildSegment(SEGMENT_TYPE_OOC,mark,mark)			
+				}else if( c == ')' ){
+					if( 0 < i && message.charAt(i-1) == ')' ) continue
+					continue  //doesnt work yet
+					segment.msgMark.end = i
+					messageSegments.push(segment)
+				}
+			}
+			
+			//remaining segment
+			segment.msgMark.end = message.length
+			messageSegments.push(segment)
+									
+			messageSegments = messageSegments
+				.filter((segment) => { return segment.msgMark.start < segment.msgMark.end })
+				.map((segment) => 	{
+										segment.msg = message.substring(segment.msgMark.start,segment.msgMark.end)
+										return segment
+									})
+				.filter((segment) => {return segment.msg.trim().length > 0})
+			
+			messageSegments.push({type: 'original', msg: message})
+			messageObj.message = messageSegments
+			
+			return messageObj
+		}
+		
+		function buildHtmlMessage(messageObj){
+			var html = []
+						
+			html.push('<div class="',getMessageBlockCssClass(messageObj),'">')
+			
+				html.push('<div>') //html.push('<dt>')
+					buildHtmlMessageHeader(html,messageObj)
+				html.push('</div>') //html.push('</dt>')
+				html.push('<div>') //html.push('<dd>')
+					buildHtmlMessageBody(html,messageObj)
+				html.push('</div>') //html.push('</dd>')
+			
+			html.push('</div>')
+			html.push('<br/>')
+			return html
+		}	
+		
+		function getMessageBlockCssClass(messageObj){
+			if(messageObj.type == CHATLOG_TYPE_SAY){
+				return "message-body-say"
+			}else if(messageObj.type == CHATLOG_TYPE_EMOTE){						
+				return "message-body-emote"
+			}else if(messageObj.type == CHATLOG_TYPE_TELL_S){
+				return "message-body-tells"
+			}else if(messageObj.type == CHATLOG_TYPE_TELL_R){
+				return "message-body-tellr"
+			}else if(messageObj.type == CHATLOG_TYPE_GUILD){
+				return "message-body-guild"
+			}else if(messageObj.type == CHATLOG_TYPE_YELL){
+				return "message-body-yell"
+			}else{
+				return "message-body-default"
+			}
+		}
+		
+		//const TIME_REGEX = new RegExp("","")
+		
+		function buildHtmlMessageHeader(html,messageObj){			
+			html.push('<span class="message-header">')
+				html.push('<b>')
+
+					html.push('[',messageObj.time.toLocaleTimeString(),'] ')
+						
+					if(messageObj.type == CHATLOG_TYPE_TELL_S){
+						html.push('To ')
+					}else if(messageObj.type == CHATLOG_TYPE_TELL_R){
+						html.push('From ')
+					}
+					html.push(messageObj.source,':')
+						
+				html.push('</b>')
+			html.push('</span>')
+		}
+		
+		function buildHtmlMessageBody(html,messageObj){
+			
+			
+			let whiteSpaceAvailable = true
+			let whitespaced = false
+				
+			messageObj.message.forEach(function (segment) {
+					if( segment.type == 'original') return
+						
+					whitespaced = whiteSpaceAvailable || /\s/.test(segment.msg.charAt(0))
+																
+					if( segment.type == SEGMENT_TYPE_SAY ){
+						html.push('<span class="segment-say">')
+						if(!whitespaced) html.push(' ')
+						html.push('"',segment.msg,'"')
+					}else if( segment.type == SEGMENT_TYPE_EMOTE ){
+						html.push('<span class="segment-emote">')
+						if(!whitespaced) html.push(' ')
+						html.push(segment.msg)
+					}else if( segment.type == SEGMENT_TYPE_OOC ){
+						html.push('<span class="segment-ooc">')
+						if(!whitespaced) html.push(' ')
+						html.push('((',segment.msg,'))')
+					}else{
+						html.push('<span class="segment-default">')
+						if(!whitespaced) html.push(' ')
+						html.push(segment.msg)						
+					}
+					
+					html.push('</span>')
+						
+					whiteSpaceAvailable = /\s/.test(segment.msg.charAt(segment.msg.length-1))
+				})
+			
+			
+		}
+		
+	</script>
+</body>
+</html>
