@@ -35,15 +35,25 @@
 		</div>	
 		<br/>
 		<div>
+			<div>
+				<label for="btn_divide_header">Header on top</label>
+				<input type="checkbox" id="btn_divide_header" value="true"/>
+			</div>
+		</div>
+		<br/>
+		<div>
 			<button id="btn_clear_settings" type="button">Clear Settings & Reload</button>
 		</div>
-		<p></p>
+		<br/>
 		<div>
-			<input type="file" id="input_load_file" name="files[]"/>
+			<input type="file" id="btn_load_file" name="files[]"/>
 		</div>
 		<div>
-			<a href='' id='saveRef'>
-				<button id='saveButton' type='button'>Save file</button>
+			<button type="button" id="btn_format_file">Apply settings</button>
+		</div>
+		<div>
+			<a href='' id='ref_save_file'>
+				<button id='btn_save_file' type='button'>Save file</button>
 			</a>
 		<div>
 	</div>
@@ -68,9 +78,13 @@
 		]
 		
 		const CLEANER_SETTINGS_MAP = new Map(CLEANER_SETTINGS.map(e => [e.id, e]));
+		
+		let FILE_NAME = ''
+		let PARSE_RESULT = ''
+		
+		let CONFIG_HEADER_ON_TOP = false
 				
 		//console.log(TEXT_SETTINGS)
-		
 		
 		function iterateConfigLeafs(root, callback){
 			const fringe = Object.keys(root).map((key) => {return [root,key,key]})
@@ -85,6 +99,16 @@
 				}
 			}
 		}
+		
+		document.getElementById("btn_divide_header").checked = (window.localStorage.getItem("btn_divide_header") == "true")	
+		CONFIG_HEADER_ON_TOP = document.getElementById("btn_divide_header").checked
+		document.getElementById("btn_divide_header")
+			.addEventListener("change",function(event){
+				const value = event.target.checked
+				CONFIG_HEADER_ON_TOP = value
+				window.localStorage.setItem("btn_divide_header",value)
+			},false);
+		
 		
 		document.getElementById("btn_clear_settings")
 			.addEventListener("click",function(event){
@@ -203,7 +227,12 @@
 			alert('File API is not supported in this browser. Unable to process files');
 		}
 		
-		document.getElementById('saveButton').disabled  = true
+		document.getElementById('btn_save_file').disabled  = true
+		document.getElementById('btn_format_file').disabled  = true		
+		document.getElementById('btn_format_file').addEventListener('click',(event)=>{buildHtmlLog()},false);
+		document.getElementById('btn_load_file').addEventListener('change',onFileSelect,false);
+		document.getElementById('btn_load_file').addEventListener('dragover',handleDragOver,false);
+		document.getElementById('btn_load_file').addEventListener('drop',onFileDrop,false);
 	
 		function onFileSelect(event){
 			var files = event.target.files;
@@ -222,19 +251,16 @@
 			event.preventDefault();
 			event.dataTransfer.dropEffect = 'copy';
 		}
-
-		document.getElementById('input_load_file').addEventListener('change',onFileSelect,false);
-		document.getElementById('input_load_file').addEventListener('dragover',handleDragOver,false);
-		document.getElementById('input_load_file').addEventListener('drop',onFileDrop,false);
 				
 		function readFile(file){
 			FILE_NAME = file.name;
-			document.getElementById('saveButton').disabled  = true
+			document.getElementById('btn_format_file').disabled  = true
+			document.getElementById('btn_save_file').disabled  = true
 		
 			var fileReader = new FileReader()
 			fileReader.onload = function(event){
 				var content = event.target.result
-				buildHtmlLog(content)
+				parseLogFile(content)
 			}
 			fileReader.onerror = function(event) {
 				alert("File could not be read! Code " + event.target.error.code)
@@ -280,9 +306,9 @@
 	</script>
 	
 	<script>	
-		function buildHtmlLog(content){
+		function parseLogFile(content){
 			const allLines = content.split(/\r\n|\n/)
-						
+									
 			// Reading line by line
 			const result = allLines.map((line) => {
 					const index = {value:0}
@@ -295,11 +321,23 @@
 				})
 				.filter(Boolean)
 				.map(processMessageObject)
-				.map(buildHtmlMessage)
+				//.map(buildHtmlMessage)
+				//.filter(Boolean)
+				//.filter((arr) => {return arr.length > 0})
+				//.flat()
+				
+			PARSE_RESULT = result
+			
+			document.getElementById('btn_format_file').disabled  = false
+			buildHtmlLog()
+		}
+			
+		function buildHtmlLog(){
+			const result = PARSE_RESULT.map(buildHtmlMessage)
 				.filter(Boolean)
 				.filter((arr) => {return arr.length > 0})
 				.flat()
-			
+
 			const html = []
 			html.push('<!DOCTYPE html>')
 			html.push('<html>')
@@ -351,9 +389,9 @@
 			//const pretty = prettyPrintHtmlIndentation(html)
 			
 			const saveableFile = new Blob([html],{type:'text/html'})
-			document.getElementById('saveRef').href = URL.createObjectURL(saveableFile)
-			document.getElementById('saveRef').download = FILE_NAME + '.cleaned.html'
-			document.getElementById('saveButton').disabled = false	
+			document.getElementById('ref_save_file').href = URL.createObjectURL(saveableFile)
+			document.getElementById('ref_save_file').download = FILE_NAME + '.cleaned.html'
+			document.getElementById('btn_save_file').disabled = false	
 		}
 		
 		function prettyPrintHtmlIndentation(str){
@@ -408,8 +446,7 @@
 			html.push('}')
 		}
 				
-		var FILE_NAME = ''
-		var PARSE_RESULT = ''
+
 		
 		const CHATLOG_TYPE_SAY = '000a'
 		const CHATLOG_TYPE_EMOTE = '001c'
@@ -586,12 +623,11 @@
 						
 			html.push('<div class="',getMessageBlockCssClass(messageObj),'">')
 			
-				html.push('<div>') //html.push('<dt>')
-					buildHtmlMessageHeader(html,messageObj)
-				html.push('</div>') //html.push('</dt>')
-				html.push('<div>') //html.push('<dd>')
-					buildHtmlMessageBody(html,messageObj)
-				html.push('</div>') //html.push('</dd>')
+			if( CONFIG_HEADER_ON_TOP ) html.push('<div>')
+			buildHtmlMessageHeader(html,messageObj)
+			if( CONFIG_HEADER_ON_TOP ) html.push('</div>','<div>')
+			buildHtmlMessageBody(html,messageObj)
+			if( CONFIG_HEADER_ON_TOP ) html.push('</div>')
 			
 			html.push('</div>')
 			html.push('<br/>')
