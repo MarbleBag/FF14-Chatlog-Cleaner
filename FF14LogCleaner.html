@@ -126,7 +126,7 @@
 				for(let property in config){
 					const key = element.id + "_config_" + property
 					const data = localStorage.getItem(key)
-					console.log("Property: " + key + " = " + data)
+					//console.log("Property: " + key + " = " + data)
 					if( data !== undefined && data != null ){
 						config[property] = data
 					}					
@@ -201,7 +201,7 @@
 						const key = element.id + "_config_" + "colorFG"
 						config.colorFG = newColor
 						localStorage.setItem(key,newColor)					
-						console.log("Set " + key + " to " + newColor)
+						//console.log("Set " + key + " to " + newColor)
 						updateStyleSheet()
 					}
 					picker.addEventListener("change",callback,false)
@@ -213,7 +213,7 @@
 						const key = element.id + "_config_" + "colorBG"
 						config.colorBG = newColor
 						localStorage.setItem(key,newColor)					
-						console.log("Set " + key + " to " + newColor)
+						//console.log("Set " + key + " to " + newColor)
 						updateStyleSheet()
 					}
 					picker.addEventListener("change",callback,false)
@@ -473,7 +473,7 @@
 					sType == CHATLOG_TYPE_GUILD || 
 					sType == CHATLOG_TYPE_TELL_S || 
 					sType == CHATLOG_TYPE_TELL_R) ){
-				console.log('Begone: ' + line);
+				//console.log('Begone: ' + line);
 				return;
 			}
 			
