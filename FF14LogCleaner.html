@@ -28,7 +28,7 @@
 <body>
 	<div>
 		<div id="cleanerSettings">
-			<div id="cleanerSettingsColor">
+			<div id="area_cleaner_settings">
 			</div>
 			<div id="cleanerSettingsTimeFormat">
 			</div>
@@ -42,7 +42,7 @@
 		</div>
 		<br/>
 		<div>
-			<button id="btn_clear_settings" type="button">Clear Settings & Reload</button>
+			<button id="btn_clear_settings" type="button">Clear Settings</button>
 		</div>
 		<br/>
 		<div>
@@ -65,27 +65,198 @@
 	</div>
 	
 	<script>
+		class CleanerEventDispatcher{
+			constructor(){
+				this.listenersByTopic = new Map([])
+			}
+			dispatch(topic,data){
+				const listeners = this.listenersByTopic.get(topic)
+				if(listeners){
+					const callbacks = listeners.slice(0)
+					callbacks.forEach((callback)=>{callback(data)})
+				}
+			}
+			on(topic,callback){
+				if( !callback) return
+				let listeners = this.listenersByTopic.get(topic)
+				if( !listeners ){
+					listeners = []
+					this.listenersByTopic.set(topic,listeners)
+				}
+				listeners.push(callback)
+			}
+			off(topic,callback){
+				let listeners = this.listenersByTopic.get(topic)
+				if( listeners ){
+					const idx = listeners.indexOf(callback)
+					if( idx > -1 ) listeners.splice(idx,1)
+					if( listeners.length === 0 ) this.listenersByTopic.delete(topic)
+				}
+			}
+		}
+	
+		class CleanerProperty{
+			constructor(label,propertyId,value){
+				this.label = label
+				this.parentId = null
+				this.propertyId = propertyId
+				this._value = value
+				this._defaultValue = value
+				this._event = new CleanerEventDispatcher()
+			}
+			
+			addEventListener(topic,callback){
+				this._event.on(topic,callback)
+			}
+			
+			get storageKey(){
+				return this.parentId + "_config_" + this.propertyId
+			}
+			
+			get value(){
+				return this._value
+			}
+			
+			set value(val){			
+				this._value = val
+				window.localStorage.setItem(this.storageKey,val)
+				this._event.dispatch("set",{value:this._value})
+			}
+			
+			loadStorage(){
+				const stored = window.localStorage.getItem(this.storageKey)
+				if(stored !== undefined && stored !== null) this._value = stored
+				this._event.dispatch("set",{value:this._value})
+			}
+			
+			reset(){
+				window.localStorage.removeItem(this.storageKey)
+				this._value = this._defaultValue
+				this._event.dispatch("set",{value:this._value})
+			}
+		}
+	
 		const CLEANER_SETTINGS = [
-			{name: "Background", id: "background", config: {colorBG:null}},
-			{name: "Message Head", id:"messagehead", config: {colorFG:"#047AC2"}},
-			{name: "Say",id: "say", config: {colorFG:"#000000",colorBG:null, color:{text:null,background:null}}},
-			{name: "Emote",id: "emote", config: {colorFG:"#DF8707", colorBG:null}},
-			{name: "OoC",id: "ooc", config: {colorFG:"#FF0000", colorBG:null}},
-			{name: "Yell",id: "yell", config: {colorFG:null,colorBG:"#FAFFD1"}},
-			{name: "Guild",id: "guild", config: {colorFG:null,colorBG:"#CDFF9E"}},
-			{name: "Tell send",id: "tells", config: {colorFG:null,colorBG:'#FF9EED'}},
-			{name: "Tell recieve",id: "tellr", config: {colorFG:null,colorBG:"#CC9EFF"}}
+			{label: "", id: "background", 
+					config: new Map([
+						["colorBG",		new CleanerProperty("Background color","colorBG",null)]
+					])
+				},
+			{label: "Message Head", id:"messagehead", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG","#047AC2")],
+					])
+				},
+			{label: "Say",id: "say", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG","#000000")],
+						["colorBG",		new CleanerProperty("Background color","colorBG",null)],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "Emote",id: "emote", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG","#DF8707")],
+						["colorBG",		new CleanerProperty("Background color","colorBG",null)],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "OoC",id: "ooc", 
+				config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG","#FF0000")],
+						["colorBG",		new CleanerProperty("Background color","colorBG",null)],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "Party",id: "party", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG",null)],
+						["colorBG",		new CleanerProperty("Background color","colorBG","#CDFF9E")],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "Raid",id: "raid", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG",null)],
+						["colorBG",		new CleanerProperty("Background color","colorBG","#CDFF9E")],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "Yell",id: "yell", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG",null)],
+						["colorBG",		new CleanerProperty("Background color","colorBG","#FAFFD1")],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "Guild",id: "guild", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG",null)],
+						["colorBG",		new CleanerProperty("Background color","colorBG","#CDFF9E")],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "Tell send",id: "tells", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG",null)],
+						["colorBG",		new CleanerProperty("Background color","colorBG","#FF9EED")],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "Tell recieve",id: "tellr", 
+					config: new Map([
+						["colorFG",		new CleanerProperty("Text color","colorFG",null)],
+						["colorBG",		new CleanerProperty("Background color","colorBG","#CC9EFF")],
+						["opacityBG",	new CleanerProperty("Background opacity","opacityBG",1.0)]
+					])
+				},
+			{label: "Misc", id: "misc",
+					config: new Map([
+						["headerplacement",		new CleanerProperty("","headerplacement","true")],
+					])
+				}
 		]
 		
 		const CLEANER_SETTINGS_MAP = new Map(CLEANER_SETTINGS.map(e => [e.id, e]));
-		
 		let FILE_NAME = ''
-		let PARSE_RESULT = ''
-		
+		let PARSE_RESULT = ''		
 		let CONFIG_HEADER_ON_TOP = false
-				
-		//console.log(TEXT_SETTINGS)
 		
+		setupCleanerProperties()
+		setupCleanerColorTable()
+		setupCleanerListener()
+		
+		
+		{ //misc
+			{
+				const checkboxHeaderPlacement = document.getElementById("btn_divide_header")
+				const config = CLEANER_SETTINGS_MAP.get("misc").config.get("headerplacement")
+				checkboxHeaderPlacement.checked = (config.value === 'true')
+				checkboxHeaderPlacement.addEventListener("change",(event)=>{config.value = event.target.checked})
+				config.addEventListener("set",(event)=>{checkboxHeaderPlacement.checked = (config.value === 'true')})
+			}
+		}	
+		
+		document.getElementById("btn_clear_settings")
+			.addEventListener("click",function(event){
+				for(let element of CLEANER_SETTINGS){
+					for(let property of element.config.values()){
+						property.reset()
+					}
+				}
+				//window.localStorage.clear()
+				//window.location.reload(false)
+			},false);
+						
+		function setupCleanerProperties(){
+			for(let element of CLEANER_SETTINGS){
+				for(let property of element.config.values()){					
+					property.parentId = element.id
+					property.loadStorage()
+				}
+			}
+		}
+				
 		function iterateConfigLeafs(root, callback){
 			const fringe = Object.keys(root).map((key) => {return [root,key,key]})
 			while( fringe.length ){
@@ -99,125 +270,99 @@
 				}
 			}
 		}
-		
-		document.getElementById("btn_divide_header").checked = (window.localStorage.getItem("btn_divide_header") == "true")	
-		CONFIG_HEADER_ON_TOP = document.getElementById("btn_divide_header").checked
-		document.getElementById("btn_divide_header")
-			.addEventListener("change",function(event){
-				const value = event.target.checked
-				CONFIG_HEADER_ON_TOP = value
-				window.localStorage.setItem("btn_divide_header",value)
-			},false);
-		
-		
-		document.getElementById("btn_clear_settings")
-			.addEventListener("click",function(event){
-				window.localStorage.clear()
-				window.location.reload(false)
-			},false);
-		
-		//iterateConfigLeafs( TEXT_SETTINGS[0].config )
-		
-		{
-			const localStorage = window.localStorage
-			
-			for(let element of CLEANER_SETTINGS){
-				const config = element.config
-				for(let property in config){
-					const key = element.id + "_config_" + property
-					const data = localStorage.getItem(key)
-					//console.log("Property: " + key + " = " + data)
-					if( data !== undefined && data != null ){
-						config[property] = data
-					}					
-				}
-			}
-		}
-				
-		function buildCleanerColorTable(){
+								
+		function setupCleanerColorTable(){
 			const html = []
 			html.push("<table>")
 			html.push("<tbody>")
 			
+			function buildColorPicker(colorProperty,opacityProperty){
+				html.push("<td><div>")
+				if( colorProperty ){					
+					html.push("<label>",colorProperty.label,":</label>")
+					const pickerId = "picker_" + colorProperty.parentId + "_" + colorProperty.propertyId
+					const clearId = "btn_" + colorProperty.parentId + "_" + colorProperty.propertyId + "_clear"
+					const resetId = "btn_" + colorProperty.parentId + "_" + colorProperty.propertyId + "_reset"					
+					html.push("<input type='color' id='",pickerId,"'>")		
+					html.push("<button class='clearBtn' id='",clearId,"'>&#x274C;</button>")						
+					html.push("<button class='resetBtn' id='",resetId,"'>&#x274C;</button>")				
+				}
+				if( opacityProperty ){
+					const opacityId = "input_" + opacityProperty.parentId + "_" + opacityProperty.propertyId
+					html.push("<input class='opacityInput' type='number' min='0' max='100' step='5' maxlength=3 size=3 id='",opacityId,"'>")
+				}
+				html.push("</div></td>")
+			}
+			
 			//make this more generic, table should be build automatically from config
 			for(let element of CLEANER_SETTINGS){
-				html.push("<tr>")
-				
 				const config = element.config
-
-				let hasColorFG = "colorFG" in config
-				let hasColorBG = "colorBG" in config
 				
-				if(hasColorFG || hasColorBG){
-					html.push("<td>")
-						html.push(element.name," color")
-					html.push("</td>")
-					
-						if( hasColorFG ){
-							html.push("<td>")
-								html.push("<div>")
-									html.push("<label>Text color:</label>")
-									html.push("<input type='color' id='picker_",element.id,"_color_text'")
-									if( config.colorFG ){
-										html.push(" value=",config.colorFG)
-									}
-									html.push(">")
-								html.push("</div>")
-							html.push("</td>")
-						}
-						if( hasColorBG ){
-							html.push("<td>")
-								html.push("<div>")
-									html.push("<label>Background color:</label>")
-									html.push("<input type='color' id='picker_",element.id,"_color_background'")
-									if( config.colorBG ){
-										html.push(" value=",config.colorBG)
-									}
-									html.push(">")
-								html.push("</div>")
-							html.push("</td>")
-						}
-					}
-				html.push("</tr>")
+				const backgroundColor = config.get("colorBG")
+				const textColor = config.get("colorFG")
+				
+				if( textColor || backgroundColor ){
+					html.push("<tr>")				
+					html.push("<td>",element.label,"</td>")					
+					buildColorPicker(textColor,null)
+					buildColorPicker(backgroundColor,config.get("opacityBG"))					
+					html.push("</tr>")				
+				}
 			}	
 			
 			html.push("</tbody>")
 			html.push("</table>")
 			
-			const cleanerSettings = document.getElementById('cleanerSettingsColor')	
+			const cleanerSettings = document.getElementById('area_cleaner_settings')	
 			cleanerSettings.innerHTML = html.join('')
 		}
-		buildCleanerColorTable()
+		
+		function setupCleanerListener(){
+		
+			function buildColorListener(colorProperty,opacityProperty){
+				if( !colorProperty ) return
 				
-		{			
-			//make this more generic, callbacks should be build automatically from config
-			const localStorage = window.localStorage
+				const pickerId 	= "picker_" + colorProperty.parentId + "_" + colorProperty.propertyId
+				const picker = document.getElementById(pickerId)
+				if( picker ){
+					picker.value = colorProperty.value //initialize picker value					
+					colorProperty.addEventListener("set",(event)=>{
+							if( event.value ) picker.value = event.value
+							else picker.value = "#000000"
+						})
+					picker.addEventListener("change",(event)=>{colorProperty.value = event.target.value},false)
+				}
+				
+				const clearId = "btn_" + colorProperty.parentId + "_" + colorProperty.propertyId + "_clear"
+				const btnClear = document.getElementById(clearId)
+				if( btnClear ){
+					btnClear.addEventListener("click",(event) => {colorProperty.value = null},false)
+				}
+				
+				const resetId 	= "btn_" 	+ colorProperty.parentId + "_" + colorProperty.propertyId + "_reset"
+				const btnReset = document.getElementById(resetId)
+				if( btnReset ){
+					btnReset.addEventListener("click",(event) => {
+							colorProperty.reset()
+							if( opacityProperty ) opacityProperty.reset()
+						},false)
+				}
+				
+				if( opacityProperty ){
+					const opacityId = "input_" 	+ opacityProperty.parentId + "_" + opacityProperty.propertyId
+					const input = document.getElementById(opacityId)
+					if( input ){						
+						input.value = opacityProperty.value * 100.0 //initialize picker value	
+						opacityProperty.addEventListener("set",(event)=>{input.value = opacityProperty.value * 100.0})
+						input.addEventListener("change",(event)=>{opacityProperty.value = input.value / 100.0})
+					}
+				}				
+			}
+		
 			for(let element of CLEANER_SETTINGS){
 				const config = element.config
-				if( "colorFG" in config ){
-					const picker = document.getElementById("picker_" + element.id + "_color_text")
-					const callback = function(event){
-						const newColor = event.target.value
-						const key = element.id + "_config_" + "colorFG"
-						config.colorFG = newColor
-						localStorage.setItem(key,newColor)					
-						//console.log("Set " + key + " to " + newColor)
-						updateStyleSheet()
-					}
-					picker.addEventListener("change",callback,false)
-				}
-				if( "colorBG" in config ){
-					const picker = document.getElementById("picker_" + element.id + "_color_background")
-					const callback = function(event){
-						const newColor = event.target.value
-						const key = element.id + "_config_" + "colorBG"
-						config.colorBG = newColor
-						localStorage.setItem(key,newColor)					
-						//console.log("Set " + key + " to " + newColor)
-						updateStyleSheet()
-					}
-					picker.addEventListener("change",callback,false)
-				}
+				buildColorListener(config.get("colorFG"))
+				buildColorListener(config.get("colorBG"),config.get("opacityBG"))
 			}
 		}
 	</script>
@@ -419,41 +564,61 @@
 		}		
 				
 		function buildHtmlStyleSheet(html){			
-			buildCssClass(html,'chat-log','background', 2 )
-			buildCssClass(html,'message-header','messagehead', 1)
+		
+			function writeCssAttribute(configFlag, expectedFlag, config, configKey, target){
+				if( configFlag & expectedFlag && config.has(configKey) ){
+					const value = config.get(configKey).value
+					if( value !== null && value !== undefined )  html.push(target + ':' + value + ';')
+				}
+			}
+		
+			function buildCssClass(cssClassName, settingKey, configFlag){
+				const config = CLEANER_SETTINGS_MAP.get(settingKey).config
+				html.push('.',cssClassName,'{')
+				if( config ){
+					if((configFlag & 1) && config.has("colorFG")){
+						const value = config.get("colorFG").value
+						if( value !== null && value !== undefined )  html.push("color:" + value + ";")
+					}
+					
+					if((configFlag & 2) && config.has("colorBG")){
+						const value = config.get("colorBG").value
+						if( value !== null && value !== undefined ){
+							const alpha = !config.has("opacityBG") ? "FF" : Math.round((255 * config.get("opacityBG").value)).toString(16);
+							html.push("background:" + value + alpha + ";")
+						}
+					}
+				}
+				html.push('}')
+			}
+		
+			buildCssClass('chat-log','background', 2 )
+			buildCssClass('message-header','messagehead', 1)
 						
-			buildCssClass(html,'message-body-say','say', 2)	
-			buildCssClass(html,'message-body-emote','emote', 2)	
-			buildCssClass(html,'message-body-yell','yell', 1|2)	
-			buildCssClass(html,'message-body-guild','guild', 1|2)	
-			buildCssClass(html,'message-body-tells','tells', 1|2)	
-			buildCssClass(html,'message-body-tellr','tellr', 1|2)	
+			buildCssClass('message-body-say','say', 2)	
+			buildCssClass('message-body-emote','emote', 2)	
+			buildCssClass('message-body-yell','yell', 1|2)	
+			buildCssClass('message-body-party','party', 1|2)	
+			buildCssClass('message-body-alliance','raid', 1|2)	
+			buildCssClass('message-body-guild','guild', 1|2)	
+			buildCssClass('message-body-tells','tells', 1|2)	
+			buildCssClass('message-body-tellr','tellr', 1|2)	
 			
-			buildCssClass(html,'segment-say','say', 1)	
-			buildCssClass(html,'segment-emote','emote', 1)
-			buildCssClass(html,'segment-ooc','ooc', 1|2)
+			buildCssClass('segment-say','say', 1)	
+			buildCssClass('segment-emote','emote', 1)
+			buildCssClass('segment-ooc','ooc', 1|2)
 
 			html.push('.segment-default{}')
 		}
-		
-		function buildCssClass(html,className, classKey, configKey){
-			const config = CLEANER_SETTINGS_MAP.get(classKey).config
-			html.push('.',className,'{')
-			if( config ){
-				if( (configKey & 1) && config.colorFG ) html.push('color:' + config.colorFG + ';')
-				if( (configKey & 2) &&config.colorBG ) html.push('background:' + config.colorBG + ';')
-			}
-			html.push('}')
-		}
 				
-
-		
 		const CHATLOG_TYPE_SAY = '000a'
 		const CHATLOG_TYPE_EMOTE = '001c'
 		const CHATLOG_TYPE_YELL = '001e'
 		const CHATLOG_TYPE_GUILD = '0018'
 		const CHATLOG_TYPE_TELL_S = '000c'
 		const CHATLOG_TYPE_TELL_R = '000d'
+		const CHATLOG_TYPE_PARTY = '000e'
+		const CHATLOG_TYPE_ALLIANCE = 'ffff' //missing
 		
 		const SEGMENT_TYPE_SAY = 'say'
 		const SEGMENT_TYPE_EMOTE = 'emote'
@@ -467,13 +632,15 @@
 			const sMessage = getFragment(index,line);
 
 			//ignore lines with the wrong type
-			if( !(	sType == CHATLOG_TYPE_SAY || 
-					sType == CHATLOG_TYPE_EMOTE || 
-					sType == CHATLOG_TYPE_YELL ||
-					sType == CHATLOG_TYPE_GUILD || 
-					sType == CHATLOG_TYPE_TELL_S || 
+			if( !(	sType == CHATLOG_TYPE_SAY 		|| 
+					sType == CHATLOG_TYPE_EMOTE 	|| 
+					sType == CHATLOG_TYPE_YELL 		||
+					sType == CHATLOG_TYPE_PARTY 	||
+					sType == CHATLOG_TYPE_ALLIANCE 	||
+					sType == CHATLOG_TYPE_GUILD 	|| 
+					sType == CHATLOG_TYPE_TELL_S 	|| 
 					sType == CHATLOG_TYPE_TELL_R) ){
-				//console.log('Begone: ' + line);
+				console.log('Begone: ' + line);
 				return;
 			}
 			
@@ -647,6 +814,10 @@
 				return "message-body-guild"
 			}else if(messageObj.type == CHATLOG_TYPE_YELL){
 				return "message-body-yell"
+			}else if(messageObj.type == CHATLOG_TYPE_PARTY){
+				return "message-body-party"
+			}else if(messageObj.type == CHATLOG_TYPE_ALLIANCE){
+				return "message-body-alliance"
 			}else{
 				return "message-body-default"
 			}
