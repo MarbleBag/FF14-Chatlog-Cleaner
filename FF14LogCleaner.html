@@ -6,6 +6,10 @@
 			display: table;
 		}
 		
+		.test {
+			overflow:hidden;
+		}
+		
 		.col-5 {
 			float: left;
 			width: 5%;
@@ -14,7 +18,7 @@
 	
 		.col-25 {
 			float: left;
-			width: 20%;
+			width: 25%;
 			margin-top: 6px;
 		}
 		
@@ -28,7 +32,7 @@
 <body>
 	<div>
 		<div id="cleanerSettings">
-			<div id="area_cleaner_settings">
+			<div id="cleaner_settings_color">
 			</div>
 			<div id="cleanerSettingsTimeFormat">
 			</div>
@@ -40,22 +44,22 @@
 				<input type="checkbox" id="btn_divide_header" value="true"/>
 			</div>
 		</div>
-		<br/>
-		<div>
-			<button id="btn_clear_settings" type="button">Clear Settings</button>
+		<div id="cleaner_settings_accepted_blocks">
 		</div>
 		<br/>
 		<div>
-			<input type="file" id="btn_load_file" name="files[]"/>
-		</div>
-		<div>
-			<button type="button" id="btn_format_file">Apply settings</button>
-		</div>
-		<div>
+			<button class='md-trigger' type="button" id="btn_clear_settings" >Clear Settings</button>
+			<input  class='md-trigger' type="file"   id="btn_load_file" name="files[]"/>
+			<button class='md-trigger' type="button" id="btn_format_file">Apply settings</button>
 			<a href='' id='ref_save_file'>
-				<button id='btn_save_file' type='button'>Save file</button>
+				<button class='md-trigger' id='btn_save_file' type='button'>Save file</button>
 			</a>
-		<div>
+		</div>
+		<br/>
+
+
+
+		
 	</div>
 
 	<div>
@@ -221,10 +225,40 @@
 		let FILE_NAME = ''
 		let PARSE_RESULT = ''		
 		let CONFIG_HEADER_ON_TOP = false
+					
+		const CHATLOG_TYPE_SAY = '000a'
+		const CHATLOG_TYPE_EMOTE = '001c'
+		const CHATLOG_TYPE_YELL = '001e'
+		const CHATLOG_TYPE_GUILD = '0018'
+		const CHATLOG_TYPE_TELL_S = '000c'
+		const CHATLOG_TYPE_TELL_R = '000d'
+		const CHATLOG_TYPE_PARTY = '000e'
+		const CHATLOG_TYPE_ALLIANCE = 'ffff' //missing
+		
+		const PROCESSABLE_CHATLOG_TYPES = new Set([
+				CHATLOG_TYPE_SAY,
+				CHATLOG_TYPE_EMOTE,
+				CHATLOG_TYPE_YELL,
+				CHATLOG_TYPE_GUILD,
+				CHATLOG_TYPE_TELL_S,
+				CHATLOG_TYPE_TELL_R,
+				CHATLOG_TYPE_PARTY
+			])
+			
+		const ACCEPTED_CHATLOG_TYPES = new Set([
+				CHATLOG_TYPE_SAY,
+				CHATLOG_TYPE_EMOTE,
+				CHATLOG_TYPE_YELL,
+				CHATLOG_TYPE_GUILD,
+				CHATLOG_TYPE_TELL_S,
+				CHATLOG_TYPE_TELL_R,
+				CHATLOG_TYPE_PARTY
+			])
 		
 		setupCleanerProperties()
 		setupCleanerColorTable()
 		setupCleanerListener()
+		setupCleanerMessageBlocks()
 		
 		
 		{ //misc
@@ -284,12 +318,12 @@
 					const clearId = "btn_" + colorProperty.parentId + "_" + colorProperty.propertyId + "_clear"
 					const resetId = "btn_" + colorProperty.parentId + "_" + colorProperty.propertyId + "_reset"					
 					html.push("<input type='color' id='",pickerId,"'>")		
-					html.push("<button class='clearBtn' id='",clearId,"'>&#x274C;</button>")						
-					html.push("<button class='resetBtn' id='",resetId,"'>&#x274C;</button>")				
+					html.push("<button class='clearBtn' title='Remove color' id='",clearId,"'>&#x274C;</button>")						
+					html.push("<button class='resetBtn' title='Reset to default' id='",resetId,"'>&#x274C;</button>")				
 				}
 				if( opacityProperty ){
 					const opacityId = "input_" + opacityProperty.parentId + "_" + opacityProperty.propertyId
-					html.push("<input class='opacityInput' type='number' min='0' max='100' step='5' maxlength=3 size=3 id='",opacityId,"'>")
+					html.push("<input class='opacityInput' title='Color transparency' type='number' min='0' max='100' step='5' maxlength=3 size=3 id='",opacityId,"'>")
 				}
 				html.push("</div></td>")
 			}
@@ -313,8 +347,59 @@
 			html.push("</tbody>")
 			html.push("</table>")
 			
-			const cleanerSettings = document.getElementById('area_cleaner_settings')	
-			cleanerSettings.innerHTML = html.join('')
+			const element = document.getElementById('cleaner_settings_color')	
+			element.innerHTML = html.join('')
+		}
+		
+		function setupCleanerMessageBlocks(){
+			const CHATLOG_TYPES = [				
+				["Say",				CHATLOG_TYPE_SAY],
+				["Emote",			CHATLOG_TYPE_EMOTE],
+				["Yell",			CHATLOG_TYPE_YELL],
+				["Guild",			CHATLOG_TYPE_GUILD],
+				["Tell send",		CHATLOG_TYPE_TELL_S],
+				["Tell recieve",	CHATLOG_TYPE_TELL_R],
+				["Party",			CHATLOG_TYPE_PARTY]
+				//["alliance",	CHATLOG_TYPE_ALLIANCE]				
+			]
+		
+			const html = []
+			html.push("<table>")
+			html.push("<tbody>")
+		
+			for(let type of CHATLOG_TYPES){
+				html.push("<tr>")
+					html.push("<td>")
+						html.push("<label>",type[0],"</label>")
+					html.push("</td>")
+					html.push("<td>")
+						html.push("<input type='checkbox' data-type='",type[1],"'>")
+					html.push("</td>")
+				html.push("</tr>")
+			}
+		
+			html.push("</tbody>")
+			html.push("</table>")
+		
+			const element = document.getElementById("cleaner_settings_accepted_blocks")
+			element.innerHTML = html.join('')
+			
+			function onChange(event){
+				let type = event.target.getAttribute("data-type")				
+				if( event.target.checked ){					
+					ACCEPTED_CHATLOG_TYPES.add(type)
+				}else{
+					ACCEPTED_CHATLOG_TYPES.delete(type)
+				}
+				console.log(ACCEPTED_CHATLOG_TYPES)
+			}
+			
+			const inputElements = element.getElementsByTagName("input")
+			for(let input of inputElements){
+				let type = input.getAttribute("data-type")	
+				input.checked = ACCEPTED_CHATLOG_TYPES.has(type)
+				input.addEventListener("change",onChange,false)
+			}
 		}
 		
 		function setupCleanerListener(){
@@ -478,10 +563,13 @@
 		}
 			
 		function buildHtmlLog(){
-			const result = PARSE_RESULT.map(buildHtmlMessage)
-				.filter(Boolean)
-				.filter((arr) => {return arr.length > 0})
-				.flat()
+			const result = 
+				PARSE_RESULT
+					.filter(removeUnwantedMessage)
+					.map(buildHtmlMessage)
+					.filter(Boolean)
+					.filter((arr) => {return arr.length > 0})
+					.flat()
 
 			const html = []
 			html.push('<!DOCTYPE html>')
@@ -611,14 +699,7 @@
 			html.push('.segment-default{}')
 		}
 				
-		const CHATLOG_TYPE_SAY = '000a'
-		const CHATLOG_TYPE_EMOTE = '001c'
-		const CHATLOG_TYPE_YELL = '001e'
-		const CHATLOG_TYPE_GUILD = '0018'
-		const CHATLOG_TYPE_TELL_S = '000c'
-		const CHATLOG_TYPE_TELL_R = '000d'
-		const CHATLOG_TYPE_PARTY = '000e'
-		const CHATLOG_TYPE_ALLIANCE = 'ffff' //missing
+
 		
 		const SEGMENT_TYPE_SAY = 'say'
 		const SEGMENT_TYPE_EMOTE = 'emote'
@@ -632,18 +713,11 @@
 			const sMessage = getFragment(index,line);
 
 			//ignore lines with the wrong type
-			if( !(	sType == CHATLOG_TYPE_SAY 		|| 
-					sType == CHATLOG_TYPE_EMOTE 	|| 
-					sType == CHATLOG_TYPE_YELL 		||
-					sType == CHATLOG_TYPE_PARTY 	||
-					sType == CHATLOG_TYPE_ALLIANCE 	||
-					sType == CHATLOG_TYPE_GUILD 	|| 
-					sType == CHATLOG_TYPE_TELL_S 	|| 
-					sType == CHATLOG_TYPE_TELL_R) ){
+			if( !PROCESSABLE_CHATLOG_TYPES.has(sType) ){
 				console.log('Begone: ' + line);
 				return;
 			}
-			
+						
 			const messageObj = {
 				time: sTime,
 				type: sType,
@@ -783,6 +857,10 @@
 			messageObj.message = messageSegments
 			
 			return messageObj
+		}
+		
+		function removeUnwantedMessage(messageObj){
+			return ACCEPTED_CHATLOG_TYPES.has(messageObj.type)
 		}
 		
 		function buildHtmlMessage(messageObj){
