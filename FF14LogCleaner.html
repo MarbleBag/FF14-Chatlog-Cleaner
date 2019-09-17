@@ -50,15 +50,18 @@
 		<div>
 			<button class='md-trigger' type="button" id="btn_clear_settings" >Clear Settings</button>
 			<input  class='md-trigger' type="file"   id="btn_load_file" name="files[]"/>
+			
+		</div>
+		<br/>
+		<div id="cleaner_messengers">
+		</div>
+		<br/>
+		<div>
 			<button class='md-trigger' type="button" id="btn_format_file">Apply settings</button>
 			<a href='' id='ref_save_file'>
 				<button class='md-trigger' id='btn_save_file' type='button'>Save file</button>
 			</a>
 		</div>
-		<br/>
-
-
-
 		
 	</div>
 
@@ -254,6 +257,19 @@
 				CHATLOG_TYPE_TELL_R,
 				CHATLOG_TYPE_PARTY
 			])
+			
+		const IGNORE_TYPES_BY_SOURCE = new Map()
+			
+		const CHATLOG_TYPES = [				
+				["Say",				CHATLOG_TYPE_SAY],
+				["Emote",			CHATLOG_TYPE_EMOTE],
+				["Yell",			CHATLOG_TYPE_YELL],
+				["Guild",			CHATLOG_TYPE_GUILD],
+				["Tell send",		CHATLOG_TYPE_TELL_S],
+				["Tell recieve",	CHATLOG_TYPE_TELL_R],
+				["Party",			CHATLOG_TYPE_PARTY]
+				//["alliance",	CHATLOG_TYPE_ALLIANCE]				
+			]
 		
 		setupCleanerProperties()
 		setupCleanerColorTable()
@@ -351,18 +367,9 @@
 			element.innerHTML = html.join('')
 		}
 		
-		function setupCleanerMessageBlocks(){
-			const CHATLOG_TYPES = [				
-				["Say",				CHATLOG_TYPE_SAY],
-				["Emote",			CHATLOG_TYPE_EMOTE],
-				["Yell",			CHATLOG_TYPE_YELL],
-				["Guild",			CHATLOG_TYPE_GUILD],
-				["Tell send",		CHATLOG_TYPE_TELL_S],
-				["Tell recieve",	CHATLOG_TYPE_TELL_R],
-				["Party",			CHATLOG_TYPE_PARTY]
-				//["alliance",	CHATLOG_TYPE_ALLIANCE]				
-			]
+
 		
+		function setupCleanerMessageBlocks(){
 			const html = []
 			html.push("<table>")
 			html.push("<tbody>")
@@ -391,13 +398,76 @@
 				}else{
 					ACCEPTED_CHATLOG_TYPES.delete(type)
 				}
-				console.log(ACCEPTED_CHATLOG_TYPES)
 			}
 			
 			const inputElements = element.getElementsByTagName("input")
 			for(let input of inputElements){
 				let type = input.getAttribute("data-type")	
 				input.checked = ACCEPTED_CHATLOG_TYPES.has(type)
+				input.addEventListener("change",onChange,false)
+			}
+		}
+		
+		function setupCleanerMessengers(messengers){
+			//console.log(messengers)
+			IGNORE_TYPES_BY_SOURCE.clear()
+			
+			const html = []
+			html.push("<table>")
+			html.push("<tbody>")
+			
+			function findName(type){
+				for(let arr of CHATLOG_TYPES){
+					if(arr[1] === type) return arr[0]
+				}
+				return type
+			}
+			
+			for(let messenger of messengers.entries()){
+				for(let type of messenger[1]){
+					const sender = messenger[0]
+					const typeName = findName(type)
+					html.push("<tr>")
+						html.push("<td>")
+							html.push("<label>",sender,"</label>")
+						html.push("</td>")
+						html.push("<td>")
+							html.push("<label>",typeName,"</label>")
+						html.push("</td>")
+						html.push("<td>")
+							html.push("<input type='checkbox' data-source='",sender,"' data-type='",type,"'>")
+						html.push("</td>")
+					html.push("</tr>")
+				}
+			}
+			
+			html.push("</tbody>")
+			html.push("</table>")
+		
+			const element = document.getElementById("cleaner_messengers")
+			element.innerHTML = html.join('')
+			
+			function onChange(event){
+				let source = event.target.getAttribute("data-source")	
+				let type = event.target.getAttribute("data-type")	
+				if( event.target.checked ){
+					let types = IGNORE_TYPES_BY_SOURCE.get(source)
+					if( types ) types.delete(type)
+					if( types.size == 0 ) IGNORE_TYPES_BY_SOURCE.delete(source)
+				}else{
+					let types = IGNORE_TYPES_BY_SOURCE.get(source)
+					if( !types ){
+						types = new Set()
+						IGNORE_TYPES_BY_SOURCE.set(source,types)
+					}
+					types.add(type)
+				}
+				//console.log(IGNORE_TYPES_BY_SOURCE)
+			}
+			
+			const inputElements = element.getElementsByTagName("input")
+			for(let input of inputElements){
+				input.checked = true
 				input.addEventListener("change",onChange,false)
 			}
 		}
@@ -555,6 +625,17 @@
 				//.filter(Boolean)
 				//.filter((arr) => {return arr.length > 0})
 				//.flat()
+				
+			let messengers = new Map()
+			result.forEach((msg) => {
+				let store = messengers.get(msg.source)
+				if( !store){
+					store = new Set()
+					messengers.set(msg.source,store)
+				}
+				store.add(msg.type)
+			})
+			setupCleanerMessengers(messengers)
 				
 			PARSE_RESULT = result
 			
@@ -714,7 +795,7 @@
 
 			//ignore lines with the wrong type
 			if( !PROCESSABLE_CHATLOG_TYPES.has(sType) ){
-				console.log('Begone: ' + line);
+				//console.log('Begone: ' + line);
 				return;
 			}
 						
@@ -860,7 +941,10 @@
 		}
 		
 		function removeUnwantedMessage(messageObj){
-			return ACCEPTED_CHATLOG_TYPES.has(messageObj.type)
+			if( !ACCEPTED_CHATLOG_TYPES.has(messageObj.type) ) return false
+			
+			const ignoreTypes = IGNORE_TYPES_BY_SOURCE.get(messageObj.source)
+			return !(ignoreTypes && ignoreTypes.has(messageObj.type))
 		}
 		
 		function buildHtmlMessage(messageObj){
