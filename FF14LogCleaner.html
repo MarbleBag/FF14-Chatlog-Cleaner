@@ -48,16 +48,20 @@
 		<br/>
 		<div>
 			<div>
-				<label for="btn_divide_header">Header on top</label>
-				<input type="checkbox" id="btn_divide_header" value="true"/>
+				<label for="btn_misc_headerplacement">Header on top</label>
+				<input type="checkbox" id="btn_misc_headerplacement" value="true"/>
+			</div>
+			<div>
+				<label for="btn_misc_showtime">Show time</label>
+				<input type="checkbox" id="btn_misc_showtime" value="true"/>
 			</div>
 		</div>
 		<div id="cleaner_settings_accepted_blocks">
 		</div>
 		<br/>
 		<div>
-			<button class='md-trigger' type="button" id="btn_clear_settings" >Clear Settings</button>
-			<input  class='md-trigger' type="file"   id="btn_load_file" name="files[]"/>
+			<button type="button" id="btn_clear_settings" >Clear Settings</button>
+			<input  type="file"   id="btn_load_file" name="files[]"/>
 			
 		</div>
 		<br/>
@@ -65,9 +69,9 @@
 		</div>
 		<br/>
 		<div>
-			<button class='md-trigger' type="button" id="btn_format_file">Apply settings</button>
+			<button type="button" id="btn_format_file">Apply settings</button>
 			<a href='' id='ref_save_file'>
-				<button class='md-trigger' id='btn_save_file' type='button'>Save file</button>
+				<button type='button' id='btn_save_file' >Save file</button>
 			</a>
 		</div>
 		
@@ -228,6 +232,7 @@
 			{label: "Misc", id: "misc",
 					config: new Map([
 						["headerplacement",		new CleanerProperty("","headerplacement","true")],
+						["showtime",			new CleanerProperty("","showtime","true")],
 					])
 				}
 		]
@@ -235,7 +240,6 @@
 		const CLEANER_SETTINGS_MAP = new Map(CLEANER_SETTINGS.map(e => [e.id, e]));
 		let FILE_NAME = ''
 		let PARSE_RESULT = ''		
-		let CONFIG_HEADER_ON_TOP = false
 					
 		const CHATLOG_TYPE_SAY = '000a'
 		const CHATLOG_TYPE_EMOTE = '001c'
@@ -287,10 +291,17 @@
 		
 		{ //misc
 			{
-				const checkboxHeaderPlacement = document.getElementById("btn_divide_header")
+				const checkboxHeaderPlacement = document.getElementById("btn_misc_headerplacement")
 				const config = CLEANER_SETTINGS_MAP.get("misc").config.get("headerplacement")
-				checkboxHeaderPlacement.checked = (config.value === 'true')
-				checkboxHeaderPlacement.addEventListener("change",(event)=>{config.value = event.target.checked})
+				checkboxHeaderPlacement.checked = (config.value == 'true')
+				checkboxHeaderPlacement.addEventListener("change",(event)=>{config.value = event.target.checked.toString()})
+				config.addEventListener("set",(event)=>{checkboxHeaderPlacement.checked = (config.value === 'true')})
+			}
+			{
+				const checkboxHeaderPlacement = document.getElementById("btn_misc_showtime")
+				const config = CLEANER_SETTINGS_MAP.get("misc").config.get("showtime")
+				checkboxHeaderPlacement.checked = (config.value == 'true')
+				checkboxHeaderPlacement.addEventListener("change",(event)=>{config.value = event.target.checked.toString()})
 				config.addEventListener("set",(event)=>{checkboxHeaderPlacement.checked = (config.value === 'true')})
 			}
 		}	
@@ -977,11 +988,13 @@
 						
 			html.push('<div class="',getMessageBlockCssClass(messageObj),'">')
 			
-			if( CONFIG_HEADER_ON_TOP ) html.push('<div>')
+			const headerPlacement = CLEANER_SETTINGS_MAP.get("misc").config.get("headerplacement").value === 'true'
+			
+			if( headerPlacement ) html.push('<div>')
 			buildHtmlMessageHeader(html,messageObj)
-			if( CONFIG_HEADER_ON_TOP ) html.push('</div>','<div>')
+			if( headerPlacement ) html.push('</div>','<div>')
 			buildHtmlMessageBody(html,messageObj)
-			if( CONFIG_HEADER_ON_TOP ) html.push('</div>')
+			if( headerPlacement ) html.push('</div>')
 			
 			html.push('</div>')
 			html.push('<br/>')
@@ -1016,7 +1029,9 @@
 			html.push('<span class="message-header">')
 				html.push('<b>')
 
-					html.push('[',messageObj.time.toLocaleTimeString(),'] ')
+					if( CLEANER_SETTINGS_MAP.get("misc").config.get("showtime").value === 'true' ){
+						html.push('[',messageObj.time.toLocaleTimeString(),'] ')
+					}
 						
 					if(messageObj.type == CHATLOG_TYPE_TELL_S){
 						html.push('To ')
