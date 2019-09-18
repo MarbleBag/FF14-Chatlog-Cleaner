@@ -6,6 +6,14 @@
 			display: table;
 		}
 		
+		.table-border{
+			border: 1px solid black;
+		}
+		
+		.table-border > tbody > tr > td {
+			border: 1px solid black;
+		}
+		
 		.test {
 			overflow:hidden;
 		}
@@ -413,7 +421,7 @@
 			IGNORE_TYPES_BY_SOURCE.clear()
 			
 			const html = []
-			html.push("<table>")
+			html.push("<table class='table-border'>")
 			html.push("<tbody>")
 			
 			function findName(type){
@@ -423,21 +431,38 @@
 				return type
 			}
 			
+			let cellCounter = 0
+			let columnCounter = 0
+			
+			function processEntry(sender,type,typeName){
+				if( cellCounter===0 && columnCounter===0 ) html.push("<tr>")
+				if( cellCounter===0 ) html.push("<td><table><tbody>")
+				
+				html.push("<tr>")
+				html.push("<td>","<label>",sender,"</label>","</td>")
+				html.push("<td>","<label>",typeName,"</label>","</td>")
+				html.push("<td>","<input type='checkbox' data-source='",sender,"' data-type='",type,"'>","</td>")
+				html.push("</tr>")
+				
+				cellCounter += 1
+				
+				if( cellCounter >= 5 ){
+					html.push("</td></tbody></table>")	
+					cellCounter = 0
+					columnCounter += 1
+				}
+
+				if( columnCounter >= 4 ){					
+					html.push("</tr>")
+					columnCounter = 0
+				}			
+			}
+			
 			for(let messenger of messengers.entries()){
-				for(let type of messenger[1]){
+				for(let type of messenger[1]){				
 					const sender = messenger[0]
 					const typeName = findName(type)
-					html.push("<tr>")
-						html.push("<td>")
-							html.push("<label>",sender,"</label>")
-						html.push("</td>")
-						html.push("<td>")
-							html.push("<label>",typeName,"</label>")
-						html.push("</td>")
-						html.push("<td>")
-							html.push("<input type='checkbox' data-source='",sender,"' data-type='",type,"'>")
-						html.push("</td>")
-					html.push("</tr>")
+					processEntry(sender,type,typeName)
 				}
 			}
 			
