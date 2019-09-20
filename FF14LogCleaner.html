@@ -42,8 +42,6 @@
 		<div id="cleanerSettings">
 			<div id="cleaner_settings_color">
 			</div>
-			<div id="cleanerSettingsTimeFormat">
-			</div>
 		</div>	
 		<br/>
 		<div>
@@ -56,13 +54,22 @@
 				<input type="checkbox" id="btn_misc_showtime" value="true"/>
 			</div>
 		</div>
+		<br/>
+		<div>
+			<input type="button" value="Import config" disabled onclick="document.getElementById('btn_import_settings').click()" />
+			<input type="file" style="display:none;" id="btn_import_settings" name="file"/>
+			<a href='' id='ref_export_settings'>
+				<button type="button" id="btn_export_settings" disabled>Export config</button>
+			</a>
+		</div>
+		<br/>
 		<div id="cleaner_settings_accepted_blocks">
 		</div>
 		<br/>
 		<div>
 			<button type="button" id="btn_clear_settings" >Clear Settings</button>
-			<input  type="file"   id="btn_load_file" name="files[]"/>
-			
+			<input type="button" value="Load log" onclick="document.getElementById('btn_load_file').click()" />
+			<input  type="file" style="display:none;" id="btn_load_file" name="file"/>			
 		</div>
 		<br/>
 		<div id="cleaner_messengers">
