@@ -67,21 +67,22 @@
 		</div>
 		<br/>
 		<div>
-			<button type="button" id="btn_clear_settings" >Clear Settings</button>
-			<input type="button" value="Load log" onclick="document.getElementById('btn_load_file').click()" />
-			<input  type="file" style="display:none;" id="btn_load_file" name="file"/>			
+			<div>
+				<button type="button" id="btn_format_file">Apply settings</button>				
+				<input type="button" value="Load log" onclick="document.getElementById('btn_load_file').click()" />
+				<input  type="file" style="display:none;" id="btn_load_file" name="file"/>
+				<a href='' id='ref_save_file'>
+					<button type='button' id='btn_save_file' >Save file</button>
+				</a>
+			</div>
+			<div>
+				<button type="button" id="btn_clear_settings" >Clear Settings</button>
+			</div>
 		</div>
 		<br/>
 		<div id="cleaner_messengers">
 		</div>
-		<br/>
-		<div>
-			<button type="button" id="btn_format_file">Apply settings</button>
-			<a href='' id='ref_save_file'>
-				<button type='button' id='btn_save_file' >Save file</button>
-			</a>
-		</div>
-		
+		<br/>		
 	</div>
 
 	<div>
