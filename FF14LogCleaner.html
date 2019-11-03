@@ -1069,7 +1069,7 @@
 					}else if(messageObj.type == CHATLOG_TYPE_TELL_R){
 						html.push('From ')
 					}
-					html.push(messageObj.source,':')
+					html.push(messageObj.source,': ')
 						
 				html.push('</b>')
 			html.push('</span>')
@@ -1083,6 +1083,8 @@
 				
 			messageObj.message.forEach(function (segment) {
 					if( segment.type == 'original') return
+					
+					const txt = segment.msg.replace(/</,"&lt;").replace(/>/,"&gt;").replace(/'/,"&#39;")
 						
 					whitespaced = whiteSpaceAvailable || /\s/.test(segment.msg.charAt(0))
 																
