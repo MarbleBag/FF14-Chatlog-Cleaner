@@ -82,6 +82,10 @@
 		<br/>
 		<div id="cleaner_messengers">
 		</div>
+		<div>
+			<button type="button" id="btn_messengers_select_all">Select All</button>
+			<button type="button" id="btn_messengers_deselect_all">Deselect All</button>
+		</div>		
 		<br/>		
 	</div>
 
@@ -457,6 +461,8 @@
 				if( cellCounter===0 && columnCounter===0 ) html.push("<tr>")
 				if( cellCounter===0 ) html.push("<td><table><tbody>")
 				
+				sender = sender.replace(/'/,"&#39;")
+				
 				html.push("<tr>")
 				html.push("<td>","<label>",sender,"</label>","</td>")
 				html.push("<td>","<label>",typeName,"</label>","</td>")
@@ -514,6 +520,23 @@
 				input.checked = true
 				input.addEventListener("change",onChange,false)
 			}
+			
+			document.getElementById("btn_messengers_select_all").addEventListener("click", (event)=>{
+				const element = document.getElementById("cleaner_messengers")
+				const inputElements = element.getElementsByTagName("input")
+				for(let input of inputElements){
+					if(!input.checked){ input.click() }
+				}
+			},false)
+			document.getElementById("btn_messengers_deselect_all").addEventListener("click", (event)=>{
+				const element = document.getElementById("cleaner_messengers")
+				const inputElements = element.getElementsByTagName("input")
+				for(let input of inputElements){
+					if(input.checked){ input.click() }
+				}
+			},false)
+			
+			
 		}
 		
 		function setupCleanerListener(){
